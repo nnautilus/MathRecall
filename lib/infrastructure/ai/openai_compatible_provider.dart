@@ -18,23 +18,27 @@ class OpenAiCompatibleProvider implements AiVisionProvider {
   final AiConfig config;
   final http.Client _client;
 
-  static const _promptVersion = 'v4';
+  static const _promptVersion = 'v6';
   static const _basePrompt = r'''
 你是考研数学（大学数学）错题录入助手。请识别图片中的所有题目，按题拆分，并转录为 LaTeX。
+如果图片只给出题目，请自行解答，填写答案与解法，不要因为原图没有答案就留空。
 只输出 JSON 对象，不要输出 Markdown 或解释。格式：
-{"questions":[{"prompt_latex":"求 $x^2+1=0$ 的解","answer_latex":"$x=\pm i$","solution_latex":"配方法或求根公式","knowledge_points":[],"suggested_knowledge_points":["高等数学/函数与极限/函数解析式"],"confidence":0.0}]}
+{"questions":[{"prompt_latex":"求 $x^2+1=0$ 的解","answer_latex":"$x=\pm i$","solution_latex":"配方法或求根公式","knowledge_points":["高等数学/函数与极限/函数解析式"],"confidence":0.0}]}
 要求：
 1. 题干完整；公式用 LaTeX，并用 $...$ 包裹（例如 $x^2$）；普通文字不要放进 $ 内；
-2. 无法确定的字段填 null，不要编造；
-3. 这是考研数学，知识点必须是大学数学体系：
+2. 一道题包含 (1)(2) 等多个小问时：
+   - 优先合并为一个题目，prompt_latex 保留全部小问；
+   - answer_latex 与 solution_latex 必须按小问分别给出完整答案与过程；
+   - 如果拆成多道题，每道小题都必须有自己独立完整的 answer_latex 与 solution_latex，不能只复制题干；
+3. 答案与解法尽量填写；只有确实无法确定时才填 null，不要直接留空；
+4. 这是考研数学，知识点必须是大学数学体系：
    - 科目只能是：高等数学、线性代数、概率论与数理统计；
    - 禁止使用高中数学、初中数学、小学等名称；
-4. knowledge_points 只能从下面“现有知识点”中选择完整路径，最多 3 个；
-   如果没有合适项，必须返回空数组 []，不要自行编造；
-5. suggested_knowledge_points：当 knowledge_points 为空时，给出 1~3 个最合适的大学知识点路径（科目/章节/知识点），供用户创建；
-   knowledge_points 非空时可以省略此字段；
-6. confidence 为 0~1 的识别置信度；
-7. 不要输出 Markdown 代码块。
+5. knowledge_points 优先从下面“现有知识点”中选择完整路径，最多 3 个；
+   如果都不匹配，也必须给出 1~3 个最合适的大学知识点路径，不得返回空数组；
+6. suggested_knowledge_points：当 knowledge_points 使用建议路径时，可以同时填写；否则可省略；
+7. confidence 为 0~1 的识别置信度；
+8. 不要输出 Markdown 代码块。
 ''';
 
   String _buildPrompt(List<String> knowledgePaths) {
@@ -49,11 +53,13 @@ class OpenAiCompatibleProvider implements AiVisionProvider {
     buffer.writeln();
     if (paths.isEmpty) {
       buffer.writeln(
-        '现有知识点：无。请直接在 knowledge_points 中给出 1~3 个最合适的大学知识点路径'
-        '（科目/章节/知识点），并同时填写 suggested_knowledge_points。',
+        '现有知识点：无。knowledge_points 必须给出 1~3 个最合适的大学知识点路径'
+        '（科目/章节/知识点），不要留空。',
       );
     } else {
-      buffer.writeln('现有知识点（只能从中选择完整路径，最多 3 个）：');
+      buffer.writeln(
+        '现有知识点（优先从中选择完整路径；没有匹配也必须给出建议路径，不得留空）：',
+      );
       for (final path in paths.take(300)) {
         buffer.writeln('- $path');
       }

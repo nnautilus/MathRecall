@@ -151,7 +151,7 @@ class MathText extends StatelessWidget {
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width - 32;
 
-        Widget mathWidget(MathSegment segment) {
+        Widget tex(MathSegment segment, {bool display = false}) {
           return ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
             child: FittedBox(
@@ -159,8 +159,7 @@ class MathText extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Math.tex(
                 segment.text,
-                mathStyle:
-                    segment.display ? MathStyle.display : MathStyle.text,
+                mathStyle: display ? MathStyle.display : MathStyle.text,
                 textStyle: effectiveStyle,
                 onErrorFallback: (_) =>
                     Text(segment.text, style: effectiveStyle),
@@ -169,30 +168,59 @@ class MathText extends StatelessWidget {
           );
         }
 
-        if (segments.length == 1 && segments.first.isMath) {
-          return mathWidget(segments.first);
+        final blocks = <Widget>[];
+        final spans = <InlineSpan>[];
+
+        void flushInline() {
+          if (spans.isEmpty) return;
+          blocks.add(
+            Text.rich(
+              TextSpan(children: List<InlineSpan>.of(spans)),
+              style: effectiveStyle,
+              textAlign: textAlign,
+            ),
+          );
+          spans.clear();
         }
 
-        final content = Wrap(
-          spacing: 0,
-          runSpacing: 2,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          alignment: textAlign == TextAlign.center
-              ? WrapAlignment.center
-              : WrapAlignment.start,
-          children: [
-            for (final segment in segments)
-              if (segment.isMath)
-                mathWidget(segment)
-              else
-                Text(
-                  segment.text,
-                  style: effectiveStyle,
-                  textAlign: textAlign,
+        for (final segment in segments) {
+          if (!segment.isMath) {
+            spans.add(TextSpan(text: segment.text, style: effectiveStyle));
+            continue;
+          }
+          final isLongFormula =
+              segment.display || segment.text.trim().length > 22;
+          if (isLongFormula) {
+            flushInline();
+            blocks.add(
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Align(
+                  alignment: segment.display
+                      ? Alignment.center
+                      : Alignment.centerLeft,
+                  child: tex(segment, display: segment.display),
                 ),
-          ],
-        );
+              ),
+            );
+          } else {
+            spans.add(
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: tex(segment),
+              ),
+            );
+          }
+        }
+        flushInline();
 
+        if (blocks.isEmpty) return const SizedBox.shrink();
+        final content = blocks.length == 1
+            ? blocks.first
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: blocks,
+              );
         if (maxLines == null) return content;
         final lineHeight = (effectiveStyle.fontSize ?? 14) * 1.5;
         return ClipRect(
