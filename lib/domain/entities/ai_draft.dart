@@ -5,6 +5,7 @@ class AiQuestionDraft {
     this.answerLatex,
     this.solutionLatex,
     this.knowledgePoints = const [],
+    this.suggestedKnowledgePoints = const [],
     this.confidence,
   });
 
@@ -12,6 +13,7 @@ class AiQuestionDraft {
   final String? answerLatex;
   final String? solutionLatex;
   final List<String> knowledgePoints;
+  final List<String> suggestedKnowledgePoints;
   final double? confidence;
 }
 

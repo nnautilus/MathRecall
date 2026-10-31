@@ -57,6 +57,36 @@ void main() {
     expect(result.model, 'vlm');
   });
 
+  test('uses suggested knowledge points when no existing match', () async {
+    final client = MockClient(
+      (request) async => http.Response.bytes(
+        utf8.encode(jsonEncode({
+          'choices': [
+            {
+              'message': {
+                'content': '{"questions":[{"prompt_latex":"题干",'
+                    '"knowledge_points":[],'
+                    '"suggested_knowledge_points":["高等数学/函数与极限/函数解析式"]}]}',
+              },
+            },
+          ],
+        })),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      ),
+    );
+    final provider = OpenAiCompatibleProvider(config(), client: client);
+
+    final result = await provider.analyzeImage(
+      bytes: Uint8List.fromList([1]),
+      mime: 'image/jpeg',
+    );
+    expect(
+      result.questions.single.knowledgePoints,
+      ['高等数学/函数与极限/函数解析式'],
+    );
+  });
+
   test('throws AppError on HTTP 401', () async {
     final client = MockClient((request) async => http.Response('unauthorized', 401));
     final provider = OpenAiCompatibleProvider(config(), client: client);

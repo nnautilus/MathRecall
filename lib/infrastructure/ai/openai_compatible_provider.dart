@@ -18,11 +18,11 @@ class OpenAiCompatibleProvider implements AiVisionProvider {
   final AiConfig config;
   final http.Client _client;
 
-  static const _promptVersion = 'v3';
+  static const _promptVersion = 'v4';
   static const _basePrompt = r'''
 你是考研数学（大学数学）错题录入助手。请识别图片中的所有题目，按题拆分，并转录为 LaTeX。
 只输出 JSON 对象，不要输出 Markdown 或解释。格式：
-{"questions":[{"prompt_latex":"求 $x^2+1=0$ 的解","answer_latex":"$x=\pm i$","solution_latex":"配方法或求根公式","knowledge_points":["高等数学/函数与极限/函数解析式"],"confidence":0.0}]}
+{"questions":[{"prompt_latex":"求 $x^2+1=0$ 的解","answer_latex":"$x=\pm i$","solution_latex":"配方法或求根公式","knowledge_points":[],"suggested_knowledge_points":["高等数学/函数与极限/函数解析式"],"confidence":0.0}]}
 要求：
 1. 题干完整；公式用 LaTeX，并用 $...$ 包裹（例如 $x^2$）；普通文字不要放进 $ 内；
 2. 无法确定的字段填 null，不要编造；
@@ -31,8 +31,10 @@ class OpenAiCompatibleProvider implements AiVisionProvider {
    - 禁止使用高中数学、初中数学、小学等名称；
 4. knowledge_points 只能从下面“现有知识点”中选择完整路径，最多 3 个；
    如果没有合适项，必须返回空数组 []，不要自行编造；
-5. confidence 为 0~1 的识别置信度；
-6. 不要输出 Markdown 代码块。
+5. suggested_knowledge_points：当 knowledge_points 为空时，给出 1~3 个最合适的大学知识点路径（科目/章节/知识点），供用户创建；
+   knowledge_points 非空时可以省略此字段；
+6. confidence 为 0~1 的识别置信度；
+7. 不要输出 Markdown 代码块。
 ''';
 
   String _buildPrompt(List<String> knowledgePaths) {
@@ -46,7 +48,10 @@ class OpenAiCompatibleProvider implements AiVisionProvider {
     final buffer = StringBuffer(_basePrompt);
     buffer.writeln();
     if (paths.isEmpty) {
-      buffer.writeln('现有知识点：无。knowledge_points 必须返回空数组 []。');
+      buffer.writeln(
+        '现有知识点：无。请直接在 knowledge_points 中给出 1~3 个最合适的大学知识点路径'
+        '（科目/章节/知识点），并同时填写 suggested_knowledge_points。',
+      );
     } else {
       buffer.writeln('现有知识点（只能从中选择完整路径，最多 3 个）：');
       for (final path in paths.take(300)) {
@@ -224,17 +229,27 @@ class OpenAiCompatibleProvider implements AiVisionProvider {
       if (item is! Map) continue;
       final prompt = _string(item, ['prompt_latex', 'promptLatex', 'prompt']) ?? '';
       if (prompt.trim().isEmpty) continue;
+      final constrained = _stringList(
+        item['knowledge_points'] ?? item['knowledgePoints'],
+      )
+          .where((path) => !RegExp('高中|初中|小学').hasMatch(path))
+          .toList();
+      final suggested = _stringList(
+        item['suggested_knowledge_points'] ??
+            item['suggestedKnowledgePoints'],
+      )
+          .where((path) => !RegExp('高中|初中|小学').hasMatch(path))
+          .toList();
       questions.add(
         AiQuestionDraft(
           promptLatex: prompt.trim(),
           answerLatex: _string(item, ['answer_latex', 'answerLatex', 'answer']),
           solutionLatex:
               _string(item, ['solution_latex', 'solutionLatex', 'solution']),
-          knowledgePoints: _stringList(
-            item['knowledge_points'] ?? item['knowledgePoints'],
-          )
-              .where((path) => !RegExp('高中|初中|小学').hasMatch(path))
-              .toList(),
+          // 没有匹配到现有知识点时，用建议路径填充，避免分类空白。
+          knowledgePoints:
+              constrained.isNotEmpty ? constrained : suggested,
+          suggestedKnowledgePoints: suggested,
           confidence: _double(item['confidence']),
         ),
       );
