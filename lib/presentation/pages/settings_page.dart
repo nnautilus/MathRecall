@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/capture_providers.dart';
 import 'ai_settings_page.dart';
+import 'backup_page.dart';
 import 'knowledge_page.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -48,17 +49,20 @@ class SettingsPage extends ConsumerWidget {
               MaterialPageRoute(builder: (_) => const KnowledgePage()),
             ),
           ),
-          const ListTile(
-            leading: Icon(Icons.backup_outlined),
-            title: Text('数据备份 / 恢复'),
-            subtitle: Text('完整备份与恢复'),
-            trailing: Icon(Icons.chevron_right),
+          ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: const Text('数据备份 / 恢复'),
+            subtitle: const Text('完整备份与恢复（含图片）'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BackupPage()),
+            ),
           ),
           const Divider(),
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('关于'),
-            subtitle: Text('MathRecall 0.1.0 · Android 单机版'),
+            subtitle: Text('MathRecall 1.1.0 · Android 单机版'),
           ),
         ],
       ),

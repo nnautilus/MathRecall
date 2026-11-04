@@ -59,3 +59,6 @@ android/.gradle/
 *.jks
 *.keystore
 
+
+# Gradle project build output
+android/build/

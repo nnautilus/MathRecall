@@ -16,6 +16,7 @@
 - **AI 配置**：OpenAI-compatible 接口，支持 OpenAI / DeepSeek / 火山方舟 / Ollama 等；Key 存 Android Keystore
 - **复习**：FSRS-6 调度、四档评分、跳过、卡住知识点/错误类型直证
 - **公式渲染**：`$...$`、`$$...$$`、`\(...\)`、`\[...\]` 及裸 LaTeX
+- **完整备份 / 恢复**：ZIP 包含数据库、原图、manifest 与 SHA-256 校验；恢复前预览，失败不覆盖原数据
 - **本地优先**：SQLite + 本地图片，无云同步
 
 ### 截图
@@ -69,7 +70,7 @@ flutter build apk --release
 
 ## 已知限制
 
-- P6 掌握度、P7 备份恢复、P8 设置完善尚未完成
+- P6 掌握度、P8 设置完善尚未完成
 - AI 识别依赖第三方服务，结果需人工校对
 - Release 版目前使用 debug 签名，正式发布前需配置签名
 - 暂不支持云同步、鸿蒙、Windows 正式适配
@@ -77,7 +78,7 @@ flutter build apk --release
 ## 路线图
 
 - [ ] P6 掌握度与统计
-- [ ] P7 完整备份 / 恢复（ZIP + manifest + SHA-256）
+- [x] P7 完整备份 / 恢复（ZIP + manifest + SHA-256）
 - [ ] P8 设置完善（阈值、测试连接、数据清理）
 - [ ] 正式签名与 Release 渠道
 
